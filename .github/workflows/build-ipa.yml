@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "archive/**"
+      - "src/**"
       - ".github/workflows/build-ipa.yml"
   workflow_dispatch:
 
@@ -46,13 +47,32 @@ jobs:
           p.write_text(s)
           PY
 
-      - name: Upload restored source for feature development
-        uses: actions/upload-artifact@v4
-        with:
-          name: LinkCleaner-source-project
-          path: ${{ runner.temp }}/source/LinkCleaner-iOS
-          if-no-files-found: error
-          retention-days: 3
+      - name: Add share ID reverse analysis module
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -n '3,$p' src/Shared/ShareIDReverseAnalyzer.swift >> "$RUNNER_TEMP/source/LinkCleaner-iOS/Shared/LinkCleanerCore.swift"
+          cat src/App/ShareIDReverseView.swift >> "$RUNNER_TEMP/source/LinkCleaner-iOS/App/ContentView.swift"
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          p = Path(os.environ["RUNNER_TEMP"]) / "source/LinkCleaner-iOS/App/ContentView.swift"
+          s = p.read_text()
+          marker = "            .toolbar {\n                ToolbarItem(placement: .topBarTrailing) {"
+          replacement = """            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink {
+                        ShareIDReverseView()
+                    } label: {
+                        Label("ID 逆向", systemImage: "person.crop.circle.badge.magnifyingglass")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {"""
+          if marker not in s:
+              raise SystemExit("Could not locate ContentView toolbar anchor")
+          s = s.replace(marker, replacement, 1)
+          p.write_text(s)
+          PY
 
       - name: Show Xcode version and project targets
         run: |

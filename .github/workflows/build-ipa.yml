@@ -24,7 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           cat archive/part*.b64 > "$RUNNER_TEMP/LinkCleaner.zip.b64"
-          base64 -D "$RUNNER_TEMP/LinkCleaner.zip.b64" > "$RUNNER_TEMP/LinkCleaner.zip"
+          base64 -D -i "$RUNNER_TEMP/LinkCleaner.zip.b64" -o "$RUNNER_TEMP/LinkCleaner.zip"
           echo "9e51ee416e8814d339c49c1f02958189e462c5cdcd58b840869cadfbde27e32c  $RUNNER_TEMP/LinkCleaner.zip" | shasum -a 256 -c
           unzip -t "$RUNNER_TEMP/LinkCleaner.zip"
           mkdir -p "$RUNNER_TEMP/source"

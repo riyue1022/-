@@ -33,8 +33,19 @@ jobs:
           # LinkReport is non-optional; remove invalid optional chaining in the XHS host check.
           sed -i '' 's/report?\.host/report.host/g' "$RUNNER_TEMP/source/LinkCleaner-iOS/ShareExtension/ShareLandingView.swift"
           grep -n 'if report' "$RUNNER_TEMP/source/LinkCleaner-iOS/ShareExtension/ShareLandingView.swift"
-          echo '--- ContentView.swift lines 245-300 ---'
-          nl -ba "$RUNNER_TEMP/source/LinkCleaner-iOS/App/ContentView.swift" | sed -n '245,300p'
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("$RUNNER_TEMP/source/LinkCleaner-iOS/App/ContentView.swift")
+          s = p.read_text()
+          old_start = "    private func parameterRow(_ parameter: ParameterReport) -> some View {\n        VStack(alignment: .leading, spacing: 5) {"
+          new_start = "    private func parameterRow(_ parameter: ParameterReport) -> some View {\n        VStack(alignment: .leading, spacing: 0) {\n            VStack(alignment: .leading, spacing: 5) {"
+          old_end = "        .padding(.vertical, 8)\n        Divider()\n    }\n\n    private var historyPanel"
+          new_end = "        .padding(.vertical, 8)\n            Divider()\n        }\n    }\n\n    private var historyPanel"
+          if old_start not in s or old_end not in s:
+              raise SystemExit("Could not locate parameterRow patch anchors")
+          s = s.replace(old_start, new_start, 1).replace(old_end, new_end, 1)
+          p.write_text(s)
+          PY
 
       - name: Show Xcode version and project targets
         run: |

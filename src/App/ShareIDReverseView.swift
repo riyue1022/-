@@ -128,7 +128,7 @@ struct ShareIDReverseView: View {
                 Spacer()
                 Text(analysis.isXiaohongshu ? "小红书链接" : "其他域名")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(analysis.isXiaohongshu ? .red : .secondary)
+                    .foregroundColor(analysis.isXiaohongshu ? Color.red : Color.secondary)
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -205,7 +205,7 @@ struct ShareIDReverseView: View {
                 Spacer(minLength: 8)
                 Text(finding.evidenceLabel)
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(finding.kind == .publisherCandidate ? .orange : .secondary)
+                    .foregroundColor(finding.kind == .publisherCandidate ? Color.orange : Color.secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(Color(uiColor: .tertiarySystemGroupedBackground))
@@ -226,7 +226,7 @@ struct ShareIDReverseView: View {
                         Spacer()
                         Text(attempt.roundTripVerified ? "往返通过" : "未通过")
                             .font(.caption2)
-                            .foregroundStyle(attempt.roundTripVerified ? .green : .secondary)
+                            .foregroundColor(attempt.roundTripVerified ? Color.green : Color.secondary)
                     }
                     Text(attempt.output)
                         .font(.caption.monospaced())

@@ -1,0 +1,75 @@
+name: Build LinkCleaner unsigned IPA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "archive/**"
+      - ".github/workflows/build-ipa.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout build inputs
+        uses: actions/checkout@v4
+
+      - name: Restore LinkCleaner Xcode project
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat archive/part*.b64 > "$RUNNER_TEMP/LinkCleaner.zip.b64"
+          base64 -D "$RUNNER_TEMP/LinkCleaner.zip.b64" > "$RUNNER_TEMP/LinkCleaner.zip"
+          echo "9e51ee416e8814d339c49c1f02958189e462c5cdcd58b840869cadfbde27e32c  $RUNNER_TEMP/LinkCleaner.zip" | shasum -a 256 -c
+          unzip -t "$RUNNER_TEMP/LinkCleaner.zip"
+          mkdir -p "$RUNNER_TEMP/source"
+          unzip -q "$RUNNER_TEMP/LinkCleaner.zip" -d "$RUNNER_TEMP/source"
+          test -f "$RUNNER_TEMP/source/LinkCleaner-iOS/LinkCleaner.xcodeproj/project.pbxproj"
+
+      - name: Show Xcode version and project targets
+        run: |
+          xcodebuild -version
+          xcodebuild -list -project "$RUNNER_TEMP/source/LinkCleaner-iOS/LinkCleaner.xcodeproj"
+
+      - name: Archive for iOS without signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/source/LinkCleaner-iOS"
+          xcodebuild \
+            -project LinkCleaner.xcodeproj \
+            -scheme LinkCleaner \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/LinkCleaner.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            archive
+
+      - name: Package unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/LinkCleaner.xcarchive/Products/Applications/LinkCleaner.app"
+          test -d "$APP"
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
+          cd "$RUNNER_TEMP/ipa"
+          /usr/bin/zip -qry "$GITHUB_WORKSPACE/LinkCleaner-unsigned.ipa" Payload
+          shasum -a 256 "$GITHUB_WORKSPACE/LinkCleaner-unsigned.ipa"
+          ls -lh "$GITHUB_WORKSPACE/LinkCleaner-unsigned.ipa"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LinkCleaner-unsigned-IPA
+          path: LinkCleaner-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14

@@ -35,7 +35,8 @@ jobs:
           grep -n 'if report' "$RUNNER_TEMP/source/LinkCleaner-iOS/ShareExtension/ShareLandingView.swift"
           python3 - <<'PY'
           from pathlib import Path
-          p = Path("$RUNNER_TEMP/source/LinkCleaner-iOS/App/ContentView.swift")
+          import os
+          p = Path(os.environ["RUNNER_TEMP"]) / "source/LinkCleaner-iOS/App/ContentView.swift"
           s = p.read_text()
           old_start = "    private func parameterRow(_ parameter: ParameterReport) -> some View {\n        VStack(alignment: .leading, spacing: 5) {"
           new_start = "    private func parameterRow(_ parameter: ParameterReport) -> some View {\n        VStack(alignment: .leading, spacing: 0) {\n            VStack(alignment: .leading, spacing: 5) {"

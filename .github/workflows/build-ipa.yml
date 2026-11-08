@@ -30,9 +30,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/source"
           unzip -q "$RUNNER_TEMP/LinkCleaner.zip" -d "$RUNNER_TEMP/source"
           test -f "$RUNNER_TEMP/source/LinkCleaner-iOS/LinkCleaner.xcodeproj/project.pbxproj"
-          # LinkReport is non-optional; remove invalid optional chaining in the XHS host check.
           sed -i '' 's/report?\.host/report.host/g' "$RUNNER_TEMP/source/LinkCleaner-iOS/ShareExtension/ShareLandingView.swift"
-          grep -n 'if report' "$RUNNER_TEMP/source/LinkCleaner-iOS/ShareExtension/ShareLandingView.swift"
           python3 - <<'PY'
           from pathlib import Path
           import os
@@ -47,6 +45,14 @@ jobs:
           s = s.replace(old_start, new_start, 1).replace(old_end, new_end, 1)
           p.write_text(s)
           PY
+
+      - name: Upload restored source for feature development
+        uses: actions/upload-artifact@v4
+        with:
+          name: LinkCleaner-source-project
+          path: ${{ runner.temp }}/source/LinkCleaner-iOS
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Show Xcode version and project targets
         run: |

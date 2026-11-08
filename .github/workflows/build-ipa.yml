@@ -30,8 +30,9 @@ jobs:
           mkdir -p "$RUNNER_TEMP/source"
           unzip -q "$RUNNER_TEMP/LinkCleaner.zip" -d "$RUNNER_TEMP/source"
           test -f "$RUNNER_TEMP/source/LinkCleaner-iOS/LinkCleaner.xcodeproj/project.pbxproj"
-          echo '--- ShareLandingView.swift lines 68-80 ---'
-          nl -ba "$RUNNER_TEMP/source/LinkCleaner-iOS/ShareExtension/ShareLandingView.swift" | sed -n '68,80p'
+          # LinkReport is non-optional; remove invalid optional chaining in the XHS host check.
+          sed -i '' 's/report?\.host/report.host/g' "$RUNNER_TEMP/source/LinkCleaner-iOS/ShareExtension/ShareLandingView.swift"
+          grep -n 'if report' "$RUNNER_TEMP/source/LinkCleaner-iOS/ShareExtension/ShareLandingView.swift"
 
       - name: Show Xcode version and project targets
         run: |

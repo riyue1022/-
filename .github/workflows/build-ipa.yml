@@ -33,6 +33,8 @@ jobs:
           # LinkReport is non-optional; remove invalid optional chaining in the XHS host check.
           sed -i '' 's/report?\.host/report.host/g' "$RUNNER_TEMP/source/LinkCleaner-iOS/ShareExtension/ShareLandingView.swift"
           grep -n 'if report' "$RUNNER_TEMP/source/LinkCleaner-iOS/ShareExtension/ShareLandingView.swift"
+          echo '--- ContentView.swift lines 245-300 ---'
+          nl -ba "$RUNNER_TEMP/source/LinkCleaner-iOS/App/ContentView.swift" | sed -n '245,300p'
 
       - name: Show Xcode version and project targets
         run: |

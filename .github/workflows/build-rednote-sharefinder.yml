@@ -6,7 +6,7 @@ on:
       - rednote-share-finder-ipa
     paths:
       - ".github/workflows/build-rednote-sharefinder.yml"
-      - "build-rednote/**"
+      - "build-rednote-data/**"
 
 jobs:
   build:
@@ -18,7 +18,7 @@ jobs:
       - name: Restore Xcode project payload
         shell: bash
         run: |
-          cat build-rednote/part-*.b64 | tr -d '\n' | base64 -D > RedNoteShareFinder-project.tar.gz
+          cat build-rednote-data/fragment-*.b64 | tr -d '\n' | base64 -D > RedNoteShareFinder-project.tar.gz
           echo "7167cc3552c925625d4f89177b715943b6d2ffc2cce968fdf1c613aea981fef1  RedNoteShareFinder-project.tar.gz" | shasum -a 256 -c -
           tar -xzf RedNoteShareFinder-project.tar.gz
           test -f RedNoteShareFinder/ShareFinder.xcodeproj/project.pbxproj

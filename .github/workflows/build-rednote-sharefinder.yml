@@ -1,0 +1,69 @@
+name: Build RedNote Share Finder IPA
+
+on:
+  push:
+    branches:
+      - rednote-share-finder-ipa
+    paths:
+      - ".github/workflows/build-rednote-sharefinder.yml"
+      - "build-rednote/**"
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore Xcode project payload
+        shell: bash
+        run: |
+          cat build-rednote/part-*.b64 | tr -d '\n' | base64 -D > RedNoteShareFinder-project.tar.gz
+          echo "7167cc3552c925625d4f89177b715943b6d2ffc2cce968fdf1c613aea981fef1  RedNoteShareFinder-project.tar.gz" | shasum -a 256 -c -
+          tar -xzf RedNoteShareFinder-project.tar.gz
+          test -f RedNoteShareFinder/ShareFinder.xcodeproj/project.pbxproj
+
+      - name: Verify the known shareRedId sample
+        shell: bash
+        run: |
+          cp RedNoteShareFinder/Tests/decoder-smoke-test.swift /tmp/main.swift
+          swiftc RedNoteShareFinder/ShareFinder/ShareRedIdDecoder.swift /tmp/main.swift -o /tmp/sharefinder-smoke-test
+          /tmp/sharefinder-smoke-test
+
+      - name: Build unsigned iOS app
+        shell: bash
+        run: |
+          cd RedNoteShareFinder
+          xcodebuild \
+            -project ShareFinder.xcodeproj \
+            -scheme ShareFinder \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY='' \
+            ARCHS=arm64 \
+            build
+
+      - name: Package unsigned IPA
+        shell: bash
+        run: |
+          APP_PATH="RedNoteShareFinder/build/Build/Products/Release-iphoneos/ShareFinder.app"
+          test -d "$APP_PATH"
+          test -f "$APP_PATH/Info.plist"
+          test -f "$APP_PATH/ShareFinder"
+          file "$APP_PATH/ShareFinder"
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          ditto "$APP_PATH" "$RUNNER_TEMP/ipa/Payload/ShareFinder.app"
+          (cd "$RUNNER_TEMP/ipa" && /usr/bin/zip -qry "$GITHUB_WORKSPACE/RedNoteShareFinder-unsigned.ipa" Payload)
+          unzip -l RedNoteShareFinder-unsigned.ipa | head -30
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RedNoteShareFinder-unsigned-IPA
+          path: RedNoteShareFinder-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14

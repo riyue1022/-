@@ -6,24 +6,26 @@ on:
       - rednote-share-finder-ipa
     paths:
       - ".github/workflows/build-rednote-sharefinder.yml"
-      - "build-rednote-data/**"
+      - "rednote-ipa-payload/**"
 
 jobs:
   build:
     runs-on: macos-15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Restore Xcode project payload
+      - name: Restore source project and verify archive
         shell: bash
         run: |
-          cat build-rednote-data/fragment-*.b64 | tr -d '\n' | base64 -D > RedNoteShareFinder-project.tar.gz
-          echo "7167cc3552c925625d4f89177b715943b6d2ffc2cce968fdf1c613aea981fef1  RedNoteShareFinder-project.tar.gz" | shasum -a 256 -c -
+          cat rednote-ipa-payload/part-*.b64 | tr -d '\n' | base64 -D > RedNoteShareFinder-project.tar.gz
+          echo "ac19b57a16f1b9b4c63f3c7b05c4f9a64ceeb858d1f881024f8bc45f139fe113  RedNoteShareFinder-project.tar.gz" | shasum -a 256 -c -
           tar -xzf RedNoteShareFinder-project.tar.gz
           test -f RedNoteShareFinder/ShareFinder.xcodeproj/project.pbxproj
+          find RedNoteShareFinder -maxdepth 3 -type f | sort
 
-      - name: Verify the known shareRedId sample
+      - name: Verify known shareRedId sample
         shell: bash
         run: |
           cp RedNoteShareFinder/Tests/decoder-smoke-test.swift /tmp/main.swift
@@ -47,7 +49,7 @@ jobs:
             ARCHS=arm64 \
             build
 
-      - name: Package unsigned IPA
+      - name: Package IPA
         shell: bash
         run: |
           APP_PATH="RedNoteShareFinder/build/Build/Products/Release-iphoneos/ShareFinder.app"
@@ -58,7 +60,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/ipa/Payload"
           ditto "$APP_PATH" "$RUNNER_TEMP/ipa/Payload/ShareFinder.app"
           (cd "$RUNNER_TEMP/ipa" && /usr/bin/zip -qry "$GITHUB_WORKSPACE/RedNoteShareFinder-unsigned.ipa" Payload)
-          unzip -l RedNoteShareFinder-unsigned.ipa | head -30
+          unzip -t RedNoteShareFinder-unsigned.ipa
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4

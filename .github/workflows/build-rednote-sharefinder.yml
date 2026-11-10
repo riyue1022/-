@@ -19,8 +19,8 @@ jobs:
       - name: Restore source project and verify archive
         shell: bash
         run: |
-          cat rednote-ipa-payload/part-*.b64 | tr -d '\n' | base64 -D > RedNoteShareFinder-project.tar.gz
-          echo "ac19b57a16f1b9b4c63f3c7b05c4f9a64ceeb858d1f881024f8bc45f139fe113  RedNoteShareFinder-project.tar.gz" | shasum -a 256 -c -
+          base64 -D rednote-ipa-payload/project.tar.gz.b64 > RedNoteShareFinder-project.tar.gz
+          echo "0cc8006b2338b6720174c316d0077970c457ecc1fc43f4d9c2fbc7011328e981  RedNoteShareFinder-project.tar.gz" | shasum -a 256 -c -
           tar -xzf RedNoteShareFinder-project.tar.gz
           test -f RedNoteShareFinder/ShareFinder.xcodeproj/project.pbxproj
           find RedNoteShareFinder -maxdepth 3 -type f | sort
@@ -30,9 +30,11 @@ jobs:
           source = project.read_text()
           broken = "children = (A30000000000000000000004 /* ShareFinder.app */; );"
           fixed = "children = (A30000000000000000000004 /* ShareFinder.app */, );"
-          if broken not in source:
-              raise SystemExit("Expected malformed PBXGroup children entry was not found")
-          project.write_text(source.replace(broken, fixed))
+          if broken in source:
+              source = source.replace(broken, fixed)
+              project.write_text(source)
+          elif fixed not in source:
+              raise SystemExit("Unexpected PBXGroup children entry")
           PY
           plutil -lint RedNoteShareFinder/ShareFinder.xcodeproj/project.pbxproj
 
@@ -42,6 +44,13 @@ jobs:
           cp RedNoteShareFinder/Tests/decoder-smoke-test.swift /tmp/main.swift
           swiftc RedNoteShareFinder/ShareFinder/ShareRedIdDecoder.swift /tmp/main.swift -o /tmp/sharefinder-smoke-test
           /tmp/sharefinder-smoke-test
+
+      - name: Verify link privacy cleaner
+        shell: bash
+        run: |
+          cp RedNoteShareFinder/Tests/link-cleaner-smoke-test.swift /tmp/main.swift
+          swiftc RedNoteShareFinder/ShareFinder/LinkPrivacyCleaner.swift /tmp/main.swift -o /tmp/link-cleaner-smoke-test
+          /tmp/link-cleaner-smoke-test
 
       - name: Build unsigned iOS app
         shell: bash

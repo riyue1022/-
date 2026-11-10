@@ -24,6 +24,17 @@ jobs:
           tar -xzf RedNoteShareFinder-project.tar.gz
           test -f RedNoteShareFinder/ShareFinder.xcodeproj/project.pbxproj
           find RedNoteShareFinder -maxdepth 3 -type f | sort
+          python3 - <<'PY'
+          from pathlib import Path
+          project = Path("RedNoteShareFinder/ShareFinder.xcodeproj/project.pbxproj")
+          source = project.read_text()
+          broken = "children = (A30000000000000000000004 /* ShareFinder.app */; );"
+          fixed = "children = (A30000000000000000000004 /* ShareFinder.app */, );"
+          if broken not in source:
+              raise SystemExit("Expected malformed PBXGroup children entry was not found")
+          project.write_text(source.replace(broken, fixed))
+          PY
+          plutil -lint RedNoteShareFinder/ShareFinder.xcodeproj/project.pbxproj
 
       - name: Verify known shareRedId sample
         shell: bash

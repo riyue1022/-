@@ -19,22 +19,76 @@ jobs:
       - name: Restore source project and verify archive
         shell: bash
         run: |
-          base64 -D rednote-ipa-payload/project.tar.gz.b64 > RedNoteShareFinder-project.tar.gz
-          echo "0cc8006b2338b6720174c316d0077970c457ecc1fc43f4d9c2fbc7011328e981  RedNoteShareFinder-project.tar.gz" | shasum -a 256 -c -
+          cat rednote-ipa-payload/part-*.b64 | tr -d '\n' | base64 -D > RedNoteShareFinder-project.tar.gz
+          echo "ac19b57a16f1b9b4c63f3c7b05c4f9a64ceeb858d1f881024f8bc45f139fe113  RedNoteShareFinder-project.tar.gz" | shasum -a 256 -c -
           tar -xzf RedNoteShareFinder-project.tar.gz
           test -f RedNoteShareFinder/ShareFinder.xcodeproj/project.pbxproj
+          cp rednote-ipa-payload/LinkPrivacyCleaner.swift RedNoteShareFinder/ShareFinder/LinkPrivacyCleaner.swift
           find RedNoteShareFinder -maxdepth 3 -type f | sort
           python3 - <<'PY'
           from pathlib import Path
+
           project = Path("RedNoteShareFinder/ShareFinder.xcodeproj/project.pbxproj")
           source = project.read_text()
-          broken = "children = (A30000000000000000000004 /* ShareFinder.app */; );"
-          fixed = "children = (A30000000000000000000004 /* ShareFinder.app */, );"
-          if broken in source:
-              source = source.replace(broken, fixed)
-              project.write_text(source)
-          elif fixed not in source:
-              raise SystemExit("Unexpected PBXGroup children entry")
+
+          changes = [
+              (
+                  'A20000000000000000000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000003 /* Assets.xcassets */; };',
+                  'A20000000000000000000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000003 /* Assets.xcassets */; };\n\t\tA20000000000000000000004 /* LinkPrivacyCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000005 /* LinkPrivacyCleaner.swift */; };'
+              ),
+              (
+                  'A30000000000000000000004 /* ShareFinder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShareFinder.app; sourceTree = BUILT_PRODUCTS_DIR; };',
+                  'A30000000000000000000004 /* ShareFinder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShareFinder.app; sourceTree = BUILT_PRODUCTS_DIR; };\n\t\tA30000000000000000000005 /* LinkPrivacyCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkPrivacyCleaner.swift; sourceTree = "<group>"; };'
+              ),
+              (
+                  'A30000000000000000000002 /* ShareRedIdDecoder.swift */,\n\t\t\t\tA30000000000000000000003 /* Assets.xcassets */,',
+                  'A30000000000000000000002 /* ShareRedIdDecoder.swift */,\n\t\t\t\tA30000000000000000000005 /* LinkPrivacyCleaner.swift */,\n\t\t\t\tA30000000000000000000003 /* Assets.xcassets */,'
+              ),
+              (
+                  'A20000000000000000000002 /* ShareRedIdDecoder.swift in Sources */, );',
+                  'A20000000000000000000002 /* ShareRedId.swift in Sources */, A20000000000000000000004 /* LinkPrivacyCleaner.swift in Sources */, );'
+              ),
+              (
+                  'children = (A30000000000000000000004 /* ShareFinder.app */; );',
+                  'children = (A30000000000000000000004 /* ShareFinder.app */, );'
+              )
+          ]
+          for old, new in changes:
+              if new in source:
+                  continue
+              if old not in source:
+                  raise SystemExit("Could not apply an expected Xcode project edit: " + old[:80])
+              source = source.replace(old, new, 1)
+
+          project.write_text(source)
+
+          app = Path("RedNoteShareFinder/ShareFinder/ShareFinderApp.swift")
+          app_source = app.read_text()
+          marker = '.padding(.top, 12)\n\n                    VStack(alignment: .leading, spacing: 10) {'
+          addition = '''.padding(.top, 12)
+
+                    NavigationLink {
+                        LinkCleanerView()
+                    } label: {
+                        HStack {
+                            Label("链接隐私净化", systemImage: "link.badge.minus")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .padding(15)
+                        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+                    }
+                    .buttonStyle(.plain)
+
+                    VStack(alignment: .leading, spacing: 10) {'''
+          if "LinkCleanerView()" not in app_source:
+              if marker not in app_source:
+                  raise SystemExit("Could not locate the ShareFinder home-screen insertion point")
+              app_source = app_source.replace(marker, addition, 1)
+              app.write_text(app_source)
           PY
           plutil -lint RedNoteShareFinder/ShareFinder.xcodeproj/project.pbxproj
 
@@ -48,8 +102,8 @@ jobs:
       - name: Verify link privacy cleaner
         shell: bash
         run: |
-          cp RedNoteShareFinder/Tests/link-cleaner-smoke-test.swift /tmp/main.swift
-          swiftc RedNoteShareFinder/ShareFinder/LinkPrivacyCleaner.swift /tmp/main.swift -o /tmp/link-cleaner-smoke-test
+          cp rednote-ipa-payload/link-cleaner-smoke-test.swift /tmp/main.swift
+          swiftc rednote-ipa-payload/LinkPrivacyCleaner.swift /tmp/main.swift -o /tmp/link-cleaner-smoke-test
           /tmp/link-cleaner-smoke-test
 
       - name: Build unsigned iOS app
